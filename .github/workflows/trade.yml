@@ -1,0 +1,59 @@
+name: Halal Trading Agent
+
+on:
+  schedule:
+    # 15:45 UTC = 6:45 مساءً بتوقيت الرياض، من الإثنين إلى الجمعة
+    # (بعد افتتاح السوق الأمريكي بساعة وربع في الشتاء، وبساعتين وربع في الصيف)
+    - cron: "45 15 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "تجربة بدون أوامر؟"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trading-agent
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Tests
+        run: pip install pytest && python -m pytest -q
+
+      - name: Run agent
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python -m agent.main --dry-run
+          else
+            python -m agent.main
+          fi
+
+      - name: Save trade log
+        if: always()
+        run: |
+          git config user.name "halal-trading-agent"
+          git config user.email "actions@users.noreply.github.com"
+          git add trades.csv latest_report.md 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Daily report $(date -u +%Y-%m-%d)"
+            git push
+          fi
