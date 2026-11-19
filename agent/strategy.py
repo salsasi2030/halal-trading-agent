@@ -54,7 +54,7 @@ def evaluate(symbol: str, bars: list[Bar]) -> Signal | None:
     # 1) ارتداد: تشبّع بيعي أمس (RSI(2) منخفض) + شمعة انعكاس اليوم
     rsi_prev = rsi(closes[:-1], 2)
     reversal = is_hammer(last) or is_bullish_engulfing(prev, last) or is_bullish(last)
-    if rsi_prev is not None and rsi_prev < config.RSI2_PULLBACK and reversal:
+    if config.ENABLE_PULLBACK and rsi_prev is not None and rsi_prev < config.RSI2_PULLBACK and reversal:
         bonus = 5 if (is_hammer(last) or is_bullish_engulfing(prev, last)) else 0
         return Signal(symbol, "ارتداد", (config.RSI2_PULLBACK - rsi_prev) + bonus, price, a,
                       f"اتجاه صاعد، RSI(2) قبل آخر شمعة {rsi_prev:.0f}، آخر شمعة: {candle}")
@@ -65,7 +65,7 @@ def evaluate(symbol: str, bars: list[Bar]) -> Signal | None:
     vols = [b.v for b in bars[-n - 1:-1]]
     avg_vol = sum(vols) / len(vols) if vols else 0
     vol_ratio = last.v / avg_vol if avg_vol else 0
-    if price > prior_high and vol_ratio >= config.BREAKOUT_VOLUME and closes_strong(last):
+    if config.ENABLE_BREAKOUT and price > prior_high and vol_ratio >= config.BREAKOUT_VOLUME and closes_strong(last):
         return Signal(symbol, "اختراق", vol_ratio * 5, price, a,
                       f"اختراق قمة {n} يوماً بحجم {vol_ratio:.1f}× المتوسط، آخر شمعة: {candle}")
     return None

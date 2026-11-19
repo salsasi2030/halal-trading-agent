@@ -68,3 +68,13 @@ def test_report_renders():
     lines = report(res, [("a", 100.0), ("b", 110.0)], 1000, 1.0, {"AAA"})
     text = "\n".join(lines)
     assert "SPUS" in text and "ارتداد" in text
+
+
+def test_variants_restore_config():
+    from agent.backtest import run_variants
+    up = lambda c: [Bar(c + i, c + i + 6, c + i - .5, c + i + 5, 1e6) for i in range(0, 30, 5)]
+    data = {"SPY": dated(trend(240)), "AAA": dated(with_pullback_then(up))}
+    before = (config.ENABLE_PULLBACK, config.TARGET_ATR, config.MAX_HOLD_DAYS, config.RSI2_PULLBACK)
+    lines = run_variants(data, "SPY", {"AAA"}, data["SPY"][0][0], 1.0, [("a", 100.0), ("b", 110.0)])
+    assert (config.ENABLE_PULLBACK, config.TARGET_ATR, config.MAX_HOLD_DAYS, config.RSI2_PULLBACK) == before
+    assert sum(1 for l in lines if l.startswith("| ") and "%" in l) == 6

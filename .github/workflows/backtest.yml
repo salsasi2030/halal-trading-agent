@@ -6,6 +6,10 @@ on:
       years:
         description: "عدد السنوات"
         default: "4"
+      variants:
+        description: "مقارنة عدة نسخ من القواعد؟"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -17,7 +21,7 @@ concurrency:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -33,13 +37,15 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: |
-          python -m agent.backtest --years "${{ inputs.years }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          extra=""
+          if [ "${{ inputs.variants }}" = "true" ]; then extra="--variants"; fi
+          python -m agent.backtest --years "${{ inputs.years }}" $extra | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Save report
         run: |
           git config user.name "halal-trading-agent"
           git config user.email "actions@users.noreply.github.com"
-          git add backtest_report.md
+          for f in backtest_report.md variants_report.md; do [ ! -f "$f" ] || git add "$f"; done
           if ! git diff --cached --quiet; then
             git commit -m "Backtest report $(date -u +%Y-%m-%d)"
             git pull --rebase -q || true

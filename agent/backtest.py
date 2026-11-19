@@ -222,6 +222,55 @@ def report(res: Result, bench: list[tuple[str, float]], budget: float, years: fl
     return lines
 
 
+VARIANTS: list[tuple[str, dict]] = [
+    ("القواعد الحالية", {}),
+    ("اختراق فقط", {"ENABLE_PULLBACK": False}),
+    ("هدف أقرب 2×ATR", {"TARGET_ATR": 2.0}),
+    ("مدة أطول 10 أيام", {"MAX_HOLD_DAYS": 10}),
+    ("ارتداد أشد RSI(2)<5", {"RSI2_PULLBACK": 5}),
+    ("اختراق فقط + 10 أيام", {"ENABLE_PULLBACK": False, "MAX_HOLD_DAYS": 10}),
+]
+
+
+def run_variants(bars, index_sym, stocks, start, years, bench) -> list[str]:
+    """يشغّل كل نسخة من القواعد على نفس البيانات ويقارن بينها."""
+    rows = []
+    for name, overrides in VARIANTS:
+        saved = {k: getattr(config, k) for k in overrides}
+        try:
+            for k, v in overrides.items():
+                setattr(config, k, v)
+            res = run(bars, index_sym, stocks, start)
+        finally:
+            for k, v in saved.items():
+                setattr(config, k, v)
+        vals = [v for _, v in res.curve]
+        final = vals[-1] if vals else config.BUDGET_USD
+        cagr = (final / config.BUDGET_USD) ** (1 / years) - 1 if years > 0 and final > 0 else 0
+        st = stats(res.trades)
+        pf = st.get("profit_factor", 0)
+        pf_s = "∞" if pf == float("inf") else f"{pf:.2f}"
+        rows.append((cagr, f"| {name} | {cagr:+.1%} | ${final:,.0f} | {max_drawdown(vals):.1%} | "
+                           f"{st['n']} | {st.get('win_rate', 0):.0%} | {pf_s} |"))
+        print(f"done: {name}", flush=True)
+    b_cagr = (bench[-1][1] / bench[0][1]) ** (1 / years) - 1 if bench and years > 0 else 0
+    best = max(rows, key=lambda r: r[0])
+    return [
+        "# مقارنة نسخ القواعد على التاريخ",
+        "",
+        f"نفس البيانات ونفس رأس المال (${config.BUDGET_USD:,.0f})، الفترة ~{years:.1f} سنة. "
+        f"للمرجع فقط: الاحتفاظ بأسهم نفس القائمة (SPUS) أعطى {b_cagr:+.1%} سنوياً.",
+        "",
+        "| النسخة | العائد السنوي | القيمة النهائية | أسوأ هبوط | الصفقات | نسبة الربح | معامل الربح |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ] + [r for _, r in rows] + [
+        "",
+        f"**الأفضل عائداً:** {best[1].split('|')[1].strip()}",
+        "",
+        "تنبيه: أفضل نسخة على الماضي ليست بالضرورة الأفضل مستقبلاً. لا يتغير شيء في القواعد إلا بموافقة أبو خالد.",
+    ]
+
+
 def main() -> None:
     import datetime as dt
 
@@ -230,6 +279,7 @@ def main() -> None:
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=float, default=4)
+    ap.add_argument("--variants", action="store_true", help="مقارنة عدة نسخ من القواعد")
     args = ap.parse_args()
 
     b = Broker()
@@ -247,8 +297,14 @@ def main() -> None:
     start = index_dates[min(len(index_dates) - 1, 210)]   # فترة تسخين للمؤشرات
     years = (dt.date.fromisoformat(index_dates[-1]) - dt.date.fromisoformat(start)).days / 365.25
 
-    res = run(bars, config.MARKET_INDEX, set(stocks), start)
     bench = [(d, x.c) for d, x in spus if d >= start]
+    if args.variants:
+        lines = run_variants(bars, config.MARKET_INDEX, set(stocks), start, years, bench)
+        Path(__file__).resolve().parent.parent.joinpath("variants_report.md").write_text(
+            "\n".join(lines) + "\n", encoding="utf-8")
+        print("\n".join(lines))
+        return
+    res = run(bars, config.MARKET_INDEX, set(stocks), start)
     lines = report(res, bench, config.BUDGET_USD, years, set(stocks))
     Path(__file__).resolve().parent.parent.joinpath("backtest_report.md").write_text(
         "\n".join(lines) + "\n", encoding="utf-8")

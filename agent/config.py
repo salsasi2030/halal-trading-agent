@@ -41,6 +41,8 @@ MAX_HOLD_DAYS = 7          # أقصى مدة للصفقة: 7 أيام تداول
 MIN_ORDER_USD = 1.00
 
 # ───────── شروط الدخول ─────────
+ENABLE_PULLBACK = True     # صفقات الارتداد
+ENABLE_BREAKOUT = True     # صفقات الاختراق
 RSI2_PULLBACK = 15         # ارتداد: RSI(2) أقل من 15 داخل اتجاه صاعد
 BREAKOUT_DAYS = 20         # اختراق: إغلاق عند أعلى سعر 20 يوماً
 BREAKOUT_VOLUME = 1.5      #   مع حجم تداول أعلى من المتوسط بـ 1.5 مرة
