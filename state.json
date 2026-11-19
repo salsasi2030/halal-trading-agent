@@ -5,43 +5,48 @@
   "positions": {
     "EMR": {
       "atr": 4.6711,
-      "entry": 161.44,
+      "entry": 161.482,
       "entry_date": "2026-11-19",
+      "filled": true,
       "setup": "ارتداد",
-      "stop": 152.0978,
-      "target": 175.4533
+      "stop": 152.1398,
+      "target": 175.4953
     },
     "MAS": {
       "atr": 2.3911,
       "entry": 83.65,
       "entry_date": "2026-11-19",
+      "filled": true,
       "setup": "ارتداد",
       "stop": 78.8678,
       "target": 90.8233
     },
     "RVTY": {
       "atr": 6.6136,
-      "entry": 155.42,
+      "entry": 155.322,
       "entry_date": "2026-11-19",
+      "filled": true,
       "setup": "ارتداد",
-      "stop": 142.1928,
-      "target": 175.2608
+      "stop": 142.0948,
+      "target": 175.1628
     },
     "TMO": {
       "atr": 17.4423,
-      "entry": 697.9,
+      "entry": 698.272,
       "entry_date": "2026-11-19",
+      "filled": true,
       "setup": "ارتداد",
-      "stop": 663.0153,
-      "target": 750.227
+      "stop": 663.3874,
+      "target": 750.5989
     },
     "TWLO": {
       "atr": 13.485,
-      "entry": 195.665,
+      "entry": 196.218,
       "entry_date": "2026-11-19",
+      "filled": true,
       "setup": "ارتداد",
-      "stop": 168.695,
-      "target": 236.12
+      "stop": 169.248,
+      "target": 236.673
     }
   }
 }
