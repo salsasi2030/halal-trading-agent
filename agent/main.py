@@ -1,6 +1,6 @@
 """نقطة التشغيل اليومية للوكيل.
 
-التشغيل:  python -m agent.main            (تنفيذ فعلي على الحساب التجريبي)
+التشغيل:  python -m agent.main            (تنفيذ فعلي على الحساب التجريبي، كل ساعة)
           python -m agent.main --dry-run  (يحسب ويعرض فقط، بلا أوامر)
 """
 
@@ -31,14 +31,22 @@ def log_trades(rows: list[dict]) -> None:
         w.writerows(rows)
 
 
-def write_report(lines: list[str]) -> None:
+def write_report(lines: list[str], to_file: bool = True) -> None:
     text = "\n".join(lines) + "\n"
-    REPORT_MD.write_text(text, encoding="utf-8")
+    if to_file:
+        REPORT_MD.write_text(text, encoding="utf-8")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as f:
             f.write(text)
     print(text)
+
+
+def report_is_from_today(now: dt.datetime) -> bool:
+    try:
+        return f"{now:%Y-%m-%d}" in REPORT_MD.read_text(encoding="utf-8").splitlines()[0]
+    except (OSError, IndexError):
+        return False
 
 
 def main() -> None:
@@ -48,6 +56,13 @@ def main() -> None:
 
     now = dt.datetime.now(dt.timezone.utc)
     b = Broker()
+
+    clock = b.clock()
+    market_open = bool(clock.get("is_open"))
+    if not market_open and not args.dry_run:
+        print("السوق الأمريكي مغلق الآن — لا شيء.")
+        return
+
     lines = [f"# تقرير الوكيل — {now:%Y-%m-%d %H:%M} UTC", ""]
     if args.dry_run:
         lines.append("**وضع التجربة (Dry run): لم تُرسل أي أوامر.**\n")
@@ -57,11 +72,7 @@ def main() -> None:
         write_report(lines + ["⛔ الحساب موقوف عن التداول من جهة الوسيط."])
         return
 
-    equity = float(acct["equity"])
-    cash = float(acct["cash"])
     symbols = list(config.TARGET_WEIGHTS)
-
-    raw_positions = b.positions()
     positions = {
         p["symbol"]: Position(
             symbol=p["symbol"],
@@ -69,16 +80,20 @@ def main() -> None:
             market_value=float(p["market_value"]),
             unrealized_plpc=float(p.get("unrealized_plpc") or 0),
         )
-        for p in raw_positions
+        for p in b.positions()
+        if p["symbol"] in config.TARGET_WEIGHTS
     }
 
-    clock = b.clock()
-    market_open = bool(clock.get("is_open"))
+    # محفظة الوكيل الخاصة بمبلغ BUDGET_USD داخل الحساب التجريبي
+    invested_value = sum(p.market_value for p in positions.values())
+    account_cash = float(acct["cash"])
+    cash = max(0.0, min(config.BUDGET_USD - b.net_spent(), account_cash))
+    equity = cash + invested_value
 
-    # الجدول يعمل أكثر من مرة يومياً احتياطاً لتأخر GitHub — ننفّذ مرة واحدة فقط
-    if market_open and not args.dry_run and b.orders_today():
-        print("الوكيل نفّذ أوامر اليوم سابقاً — لا شيء إضافي.")
-        return
+    # يعمل كل ساعة: الشراء وإعادة التوازن مرة واحدة يومياً، ووقف الخسارة كل ساعة
+    today = b.orders_today()
+    traded_today = bool(today) and not args.dry_run
+    sold_today = {o["symbol"] for o in today if o.get("side") == "sell"}
 
     prices = b.latest_prices(symbols)
     fractionable = {}
@@ -91,10 +106,17 @@ def main() -> None:
     cooldown = b.recent_stop_loss_symbols(config.COOLDOWN_DAYS)
     plan = build_plan(equity, cash, positions, prices, fractionable, cooldown)
 
-    # ملخص المحفظة
+    orders = plan.orders
+    if traded_today:
+        orders = [o for o in orders if o.tag == config.STOP_LOSS_TAG and o.symbol not in sold_today]
+        if not orders:
+            print("فحص الساعة: لا وقف خسارة مطلوب، وأوامر اليوم نُفّذت سابقاً.")
+            return
+
     lines += [
-        "## المحفظة",
-        f"- القيمة الإجمالية: **${equity:,.2f}**",
+        "## محفظة الوكيل",
+        f"- رأس المال المخصص: ${config.BUDGET_USD:,.2f}",
+        f"- القيمة الحالية: **${equity:,.2f}** ({(equity / config.BUDGET_USD - 1):+.2%})",
         f"- النقد: ${cash:,.2f}",
         "",
         "| الرمز | القيمة $ | الوزن الحالي | الهدف | ربح/خسارة |",
@@ -104,34 +126,31 @@ def main() -> None:
         p = positions.get(s)
         mv = p.market_value if p else 0.0
         pl = f"{p.unrealized_plpc:+.1%}" if p else "—"
-        lines.append(f"| {s} | {mv:,.2f} | {mv / equity:.1%} | {config.TARGET_WEIGHTS[s]:.0%} | {pl} |")
+        w = mv / equity if equity else 0
+        lines.append(f"| {s} | {mv:,.2f} | {w:.1%} | {config.TARGET_WEIGHTS[s]:.0%} | {pl} |")
 
-    lines += ["", "## أوامر اليوم"]
+    lines += ["", "## الأوامر"]
     rows = []
-    if not market_open and not args.dry_run:
-        lines.append("السوق الأمريكي مغلق الآن — لم تُرسل أوامر.")
-    else:
-        # البيع أولاً لتوفير النقد
-        for o in sorted(plan.orders, key=lambda o: o.side != "sell"):
-            amount = f"${o.notional:,.2f}" if o.notional is not None else f"{o.qty:g} وحدة"
-            if args.dry_run:
-                status, oid = "dry-run", ""
-            else:
-                res = b.submit(o.symbol, o.side, qty=o.qty, notional=o.notional, tag=o.tag)
-                status, oid = res.get("status", ""), res.get("id", "")
-            side_ar = "شراء" if o.side == "buy" else "بيع"
-            lines.append(f"- {side_ar} {o.symbol}: {amount} — {o.reason} → `{status}`")
-            rows.append({
-                "date_utc": now.isoformat(timespec="seconds"),
-                "symbol": o.symbol, "side": o.side,
-                "notional_usd": o.notional if o.notional is not None else "",
-                "qty": o.qty if o.qty is not None else "",
-                "reason": o.reason, "order_id": oid, "status": status,
-            })
-        if not plan.orders:
-            lines.append("- لا توجد أوامر.")
+    for o in sorted(orders, key=lambda o: o.side != "sell"):  # البيع أولاً لتوفير النقد
+        amount = f"${o.notional:,.2f}" if o.notional is not None else f"{o.qty:g} وحدة"
+        if args.dry_run:
+            status, oid = "dry-run", ""
+        else:
+            res = b.submit(o.symbol, o.side, qty=o.qty, notional=o.notional, tag=o.tag)
+            status, oid = res.get("status", ""), res.get("id", "")
+        side_ar = "شراء" if o.side == "buy" else "بيع"
+        lines.append(f"- {side_ar} {o.symbol}: {amount} — {o.reason} → `{status}`")
+        rows.append({
+            "date_utc": now.isoformat(timespec="seconds"),
+            "symbol": o.symbol, "side": o.side,
+            "notional_usd": o.notional if o.notional is not None else "",
+            "qty": o.qty if o.qty is not None else "",
+            "reason": o.reason, "order_id": oid, "status": status,
+        })
+    if not orders:
+        lines.append("- لا توجد أوامر.")
 
-    if plan.notes:
+    if plan.notes and not traded_today:
         lines += ["", "## ملاحظات"] + [f"- {n}" for n in plan.notes]
 
     lines += ["", "_حساب تجريبي بأموال وهمية. لا يوجد ضمان ربح. "
@@ -139,7 +158,8 @@ def main() -> None:
 
     if rows and not args.dry_run:
         log_trades(rows)
-    write_report(lines)
+    # الملف يُحدَّث عند وجود أوامر أو أول مرة في اليوم، حتى لا يتكرر الحفظ كل ساعة
+    write_report(lines, to_file=bool(rows) or not report_is_from_today(now) or args.dry_run)
 
 
 if __name__ == "__main__":

@@ -57,6 +57,28 @@ class Broker:
             and o.get("status") == "filled"
         }
 
+    def net_spent(self) -> float:
+        """صافي ما صرفه الوكيل منذ البداية = مشتريات منفّذة − مبيعات منفّذة (بالدولار)."""
+        total, after = 0.0, "2020-01-01T00:00:00Z"
+        seen: set[str] = set()
+        while True:
+            batch = self._get(config.TRADING_BASE_URL, "/v2/orders", status="closed",
+                              after=after, limit=500, direction="asc")
+            new = [o for o in batch if o["id"] not in seen]
+            if not new:
+                break
+            for o in new:
+                seen.add(o["id"])
+                if o.get("symbol") not in config.TARGET_WEIGHTS:
+                    continue
+                qty = float(o.get("filled_qty") or 0)
+                px = float(o.get("filled_avg_price") or 0)
+                total += qty * px if o.get("side") == "buy" else -qty * px
+            if len(batch) < 500:
+                break
+            after = batch[-1]["submitted_at"]
+        return total
+
     def orders_today(self) -> list[dict]:
         """أوامر الوكيل منذ بداية اليوم (بتوقيت نيويورك تقريباً = 05:00 UTC)."""
         now = dt.datetime.now(dt.timezone.utc)
