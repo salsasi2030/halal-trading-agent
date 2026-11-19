@@ -1,0 +1,47 @@
+name: Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "عدد السنوات"
+        default: "4"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest
+  cancel-in-progress: true
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Backtest
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: |
+          python -m agent.backtest --years "${{ inputs.years }}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Save report
+        run: |
+          git config user.name "halal-trading-agent"
+          git config user.email "actions@users.noreply.github.com"
+          git add backtest_report.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Backtest report $(date -u +%Y-%m-%d)"
+            git pull --rebase -q || true
+            git push
+          fi
