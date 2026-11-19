@@ -91,9 +91,9 @@ def test_pick_entries_respects_slots_cash_and_held():
 
 def test_exits():
     m = new_meta(100, 2, "ارتداد", "2026-11-16")
-    assert m["stop"] == 96 and m["target"] == 106
+    assert m["stop"] == 96 and m["target"] == 100 + config.TARGET_ATR * 2
     assert "وقف خسارة" in check_exit(m, 95.9, 1)[0]
-    assert "الهدف" in check_exit(m, 106.1, 1)[0]
+    assert "الهدف" in check_exit(m, m["target"] + 0.1, 1)[0]
     assert "المدة" in check_exit(m, 101, config.MAX_HOLD_DAYS)[0]
     reason, m2 = check_exit(m, 103.5, 1)
     assert reason is None and m2["stop"] == 100        # الوقف ارتفع لسعر الدخول

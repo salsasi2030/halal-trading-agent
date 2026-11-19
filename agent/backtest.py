@@ -224,11 +224,11 @@ def report(res: Result, bench: list[tuple[str, float]], budget: float, years: fl
 
 VARIANTS: list[tuple[str, dict]] = [
     ("القواعد الحالية", {}),
-    ("اختراق فقط", {"ENABLE_PULLBACK": False}),
-    ("هدف أقرب 2×ATR", {"TARGET_ATR": 2.0}),
-    ("مدة أطول 10 أيام", {"MAX_HOLD_DAYS": 10}),
-    ("ارتداد أشد RSI(2)<5", {"RSI2_PULLBACK": 5}),
-    ("اختراق فقط + 10 أيام", {"ENABLE_PULLBACK": False, "MAX_HOLD_DAYS": 10}),
+    ("هدف أقرب 1.5×ATR", {"TARGET_ATR": 1.5}),
+    ("الهدف القديم 3×ATR", {"TARGET_ATR": 3.0}),
+    ("وقف أضيق 1.5×ATR", {"STOP_ATR": 1.5}),
+    ("وقف أوسع 2.5×ATR", {"STOP_ATR": 2.5}),
+    ("مدة أقصر 5 أيام", {"MAX_HOLD_DAYS": 5}),
 ]
 
 
