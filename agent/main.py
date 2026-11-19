@@ -75,6 +75,11 @@ def main() -> None:
     clock = b.clock()
     market_open = bool(clock.get("is_open"))
 
+    # الجدول يعمل أكثر من مرة يومياً احتياطاً لتأخر GitHub — ننفّذ مرة واحدة فقط
+    if market_open and not args.dry_run and b.orders_today():
+        print("الوكيل نفّذ أوامر اليوم سابقاً — لا شيء إضافي.")
+        return
+
     prices = b.latest_prices(symbols)
     fractionable = {}
     for s in symbols:

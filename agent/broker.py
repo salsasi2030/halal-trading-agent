@@ -57,6 +57,18 @@ class Broker:
             and o.get("status") == "filled"
         }
 
+    def orders_today(self) -> list[dict]:
+        """أوامر الوكيل منذ بداية اليوم (بتوقيت نيويورك تقريباً = 05:00 UTC)."""
+        now = dt.datetime.now(dt.timezone.utc)
+        start = now.replace(hour=5, minute=0, second=0, microsecond=0)
+        if now < start:
+            start -= dt.timedelta(days=1)
+        orders = self._get(config.TRADING_BASE_URL, "/v2/orders",
+                           status="all", after=start.isoformat(), limit=500)
+        return [o for o in orders
+                if o.get("symbol") in config.TARGET_WEIGHTS
+                and o.get("status") not in ("canceled", "rejected", "expired")]
+
     def submit(self, symbol: str, side: str, *, qty: float | None = None,
                notional: float | None = None, tag: str = "") -> dict:
         if symbol not in config.TARGET_WEIGHTS:
