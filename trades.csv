@@ -1,0 +1,6 @@
+date_utc,symbol,side,notional_usd,qty,reason,order_id,status
+2026-11-19T15:03:41+00:00,SPUS,buy,147.0,,شراء نحو الوزن المستهدف 30%,41f2cf0d-2b13-4695-adf8-2b9d69988092,pending_new
+2026-11-19T15:03:41+00:00,HLAL,buy,122.5,,شراء نحو الوزن المستهدف 25%,17668059-d146-4ba9-b0ac-e2b726305bf3,pending_new
+2026-11-19T15:03:41+00:00,UMMA,buy,98.0,,شراء نحو الوزن المستهدف 20%,9ce56414-cb02-4abb-8b2c-e2cb69f46d16,pending_new
+2026-11-19T15:03:41+00:00,SPSK,buy,73.5,,شراء نحو الوزن المستهدف 15%,5dea84ce-03df-47e6-8833-7c246a7c468c,pending_new
+2026-11-19T15:03:41+00:00,SPRE,buy,49.0,,شراء نحو الوزن المستهدف 10%,6a4be51c-056f-432a-8cec-7506cad1858f,pending_new
