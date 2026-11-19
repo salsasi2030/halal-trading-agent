@@ -55,15 +55,20 @@ def crypto_name(k: str, fallback: str) -> str:
 def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
-    dry = ap.parse_args().dry_run
+    ap.add_argument("--report", action="store_true",
+                    help="تقرير كامل الآن: يفحص الصفقات المفتوحة كالمعتاد ويكتب التقرير حتى لو لا جديد")
+    args = ap.parse_args()
+    dry, report_only = args.dry_run, args.report
 
     now = dt.datetime.now(dt.timezone.utc)
     today = st.today_ny(now)
     b = Broker()
 
-    if not b.clock().get("is_open") and not dry:
+    market_open = bool(b.clock().get("is_open"))
+    if not market_open and not dry and not report_only:
         print("السوق الأمريكي مغلق الآن — لا شيء.")
         return
+    can_trade = market_open or dry   # السوق مغلق + تقرير فقط: لا أوامر
 
     acct = b.account()
     if acct.get("trading_blocked") or acct.get("account_blocked"):
@@ -102,7 +107,7 @@ def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
         sym = crypto_name(k_, p["symbol"])
         price = float(p["current_price"])
         mv = float(p["market_value"])
-        if k_ in config.LEGACY:
+        if k_ in config.LEGACY and can_trade:
             res = {} if dry else b.close(sym)
             record(sym, "sell", "تحويل للاستراتيجية الجديدة (بيع الصناديق القديمة)", res, qty=p["qty"])
             freed += mv
@@ -117,7 +122,7 @@ def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
             # أول مرة بعد التنفيذ: نعيد حساب الوقف والهدف على سعر التنفيذ الفعلي
             meta = {**new_meta(avg, meta["atr"], meta["setup"], meta["entry_date"]), "filled": True}
         reason, meta = check_exit(meta, price, st.trading_days_between(meta["entry_date"], today))
-        if reason:
+        if reason and can_trade:
             pnl = (price - meta["entry"]) * float(p["qty"])
             res = {} if dry else b.close(sym)
             record(sym, "sell", f"{reason} (ربح/خسارة ≈ ${pnl:+,.2f})", res, qty=p["qty"])
@@ -136,7 +141,7 @@ def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
     # ───────── 2) الدخول (مرة يومياً) ─────────
     notes: list[str] = []
     considered: list[str] = []
-    entry_run = dry or state.get("last_entry_day") != today
+    entry_run = dry or (market_open and state.get("last_entry_day") != today)
     if entry_run:
         if today in config.FOMC_DECISION_DATES:
             notes.append("اليوم قرار الفيدرالي للفائدة — لا صفقات جديدة.")
@@ -205,7 +210,7 @@ def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
         st.save(state)
     if rows and not dry:
         log_trades(rows)
-    if not actions and not entry_run:
+    if not actions and not entry_run and not report_only:
         print("فحص الساعة: لا خروج مطلوب.")
         return
 

@@ -13,6 +13,10 @@ on:
         description: "تجربة بدون أوامر؟"
         type: boolean
         default: false
+      report:
+        description: "تقرير كامل الآن؟"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -46,6 +50,8 @@ jobs:
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m agent.main --dry-run
+          elif [ "${{ inputs.report }}" = "true" ]; then
+            python -m agent.main --report
           else
             python -m agent.main
           fi
