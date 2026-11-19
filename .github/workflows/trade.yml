@@ -17,6 +17,10 @@ on:
         description: "تقرير كامل الآن؟"
         type: boolean
         default: false
+      candidates:
+        description: "كتابة مرشحي اليوم لمراجعة الأخبار؟"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -50,6 +54,8 @@ jobs:
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m agent.main --dry-run
+          elif [ "${{ inputs.candidates }}" = "true" ]; then
+            python -m agent.main --candidates
           elif [ "${{ inputs.report }}" = "true" ]; then
             python -m agent.main --report
           else
@@ -61,7 +67,7 @@ jobs:
         run: |
           git config user.name "halal-trading-agent"
           git config user.email "actions@users.noreply.github.com"
-          for f in trades.csv latest_report.md state.json; do [ ! -f "$f" ] || git add "$f"; done
+          for f in trades.csv latest_report.md state.json candidates.json; do [ ! -f "$f" ] || git add "$f"; done
           if ! git diff --cached --quiet; then
             git commit -m "Trading report $(date -u +%Y-%m-%dT%H:%M)"
             git pull --rebase -q || true

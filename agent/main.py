@@ -25,6 +25,8 @@ from .universe import is_crypto, key, load_stocks
 ROOT = Path(__file__).resolve().parent.parent
 TRADES_CSV = ROOT / "trades.csv"
 REPORT_MD = ROOT / "latest_report.md"
+CANDIDATES_JSON = ROOT / "candidates.json"
+REVIEW_JSON = ROOT / "news_review.json"
 FIELDS = ["date_utc", "symbol", "side", "notional_usd", "qty", "reason", "order_id", "status"]
 
 
@@ -48,6 +50,15 @@ def write_report(lines: list[str], to_file: bool) -> None:
     print(text)
 
 
+def load_review(today: str) -> dict | None:
+    """مراجعة الأخبار المكتوبة اليوم من المهمة المجدولة، أو None."""
+    try:
+        data = json.loads(REVIEW_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if data.get("date") == today else None
+
+
 def crypto_name(k: str, fallback: str) -> str:
     return next((c for c in config.CRYPTO if key(c) == k), fallback)
 
@@ -57,8 +68,10 @@ def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--report", action="store_true",
                     help="تقرير كامل الآن: يفحص الصفقات المفتوحة كالمعتاد ويكتب التقرير حتى لو لا جديد")
+    ap.add_argument("--candidates", action="store_true",
+                    help="يكتب مرشحي اليوم في candidates.json لمراجعة الأخبار قبل الافتتاح (بلا أوامر)")
     args = ap.parse_args()
-    dry, report_only = args.dry_run, args.report
+    dry, report_only = args.dry_run or args.candidates, args.report
 
     now = dt.datetime.now(dt.timezone.utc)
     today = st.today_ny(now)
@@ -176,11 +189,28 @@ def main() -> None:  # noqa: C901 — تسلسل واضح خطوة بخطوة
                 else:
                     clean.append((s, hs))
 
-            verdicts, view = ai_review(
-                [{"symbol": s.symbol, "setup": s.setup, "why": s.reason, "headlines": hs[:5]}
-                 for s, hs in clean[:config.AI_MAX_CANDIDATES]], regime)
+            payload = [{"symbol": s.symbol, "setup": s.setup, "why": s.reason, "headlines": hs[:5]}
+                       for s, hs in clean[:config.AI_MAX_CANDIDATES]]
+            if args.candidates:
+                CANDIDATES_JSON.write_text(json.dumps(
+                    {"date": today, "market": regime, "candidates": payload},
+                    ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                print(f"كُتب {len(payload)} مرشحاً في candidates.json")
+                return
+
+            # مراجعة الأخبار: من ملف المهمة المجدولة (قبل الافتتاح)، أو من Claude API إن وُجد مفتاحه
+            review = load_review(today)
+            if review:
+                verdicts = {sym: (False, why) for sym, why in review.get("blocked", {}).items()}
+                verdicts.update({sym: (True, why) for sym, why in review.get("approved", {}).items()})
+                view = review.get("view", "")
+                if review.get("block_new_entries"):
+                    notes.append(f"⛔ مراجعة الأخبار أوقفت الصفقات الجديدة اليوم: {review.get('block_reason', '')}")
+                    clean = []
+            else:
+                verdicts, view = ai_review(payload, regime)
             if view:
-                notes.append(f"تحليل الأخبار والاقتصاد (ذكاء اصطناعي): {view}")
+                notes.append(f"تحليل الأخبار والاقتصاد: {view}")
             approved = []
             for s, _ in clean:
                 ok_ai, why = verdicts.get(s.symbol, (True, ""))
