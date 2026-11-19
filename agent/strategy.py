@@ -1,153 +1,124 @@
-"""منطق القرار — دوال صافية بلا اتصال بالإنترنت، حتى يمكن اختبارها."""
+"""منطق القرار للمضاربة القصيرة (يوم إلى أسبوع) — دوال صافية بلا اتصال بالإنترنت."""
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from . import config
+from .indicators import (Bar, atr, candle_reading, closes_strong, is_bearish_reversal,
+                         is_bullish, is_bullish_engulfing, is_hammer, rsi, sma)
 
 
 @dataclass
-class Position:
+class Signal:
     symbol: str
-    qty: float
-    market_value: float
-    unrealized_plpc: float  # نسبة الربح/الخسارة غير المحققة (مثال: -0.08 = خسارة 8%)
-
-
-@dataclass
-class Order:
-    symbol: str
-    side: str               # "buy" أو "sell"
+    setup: str          # "ارتداد" أو "اختراق"
+    score: float
+    price: float
+    atr: float
     reason: str
-    notional: float | None = None   # مبلغ بالدولار (للكسور)
-    qty: float | None = None        # عدد الوحدات
-    tag: str = ""                   # بادئة رقم الأمر
 
 
-@dataclass
-class Plan:
-    orders: list[Order] = field(default_factory=list)
-    notes: list[str] = field(default_factory=list)
+def market_is_healthy(index_bars: list[Bar]) -> tuple[bool, str]:
+    """السوق صحي إذا كان المؤشر فوق متوسط 200 يوم. غير ذلك: لا أسهم جديدة."""
+    closes = [b.c for b in index_bars]
+    s200 = sma(closes, 200)
+    if s200 is None:
+        return True, "بيانات المؤشر غير كافية — يُعتبر السوق صحياً"
+    ok = closes[-1] > s200
+    return ok, f"{config.MARKET_INDEX} {'فوق' if ok else 'تحت'} متوسط 200 يوم ({closes[-1]:.2f} مقابل {s200:.2f})"
 
 
-def validate_weights(weights: dict[str, float]) -> None:
-    total = sum(weights.values())
-    if total > 1.0 + 1e-9:
-        raise ValueError(f"مجموع الأوزان {total:.2f} أكبر من 100%")
-    for sym, w in weights.items():
-        if w < 0 or w > config.MAX_WEIGHT + 1e-9:
-            raise ValueError(f"وزن {sym} = {w:.0%} خارج الحد المسموح ({config.MAX_WEIGHT:.0%})")
+def evaluate(symbol: str, bars: list[Bar]) -> Signal | None:
+    """يفحص آخر الشموع المكتملة ويرجع إشارة دخول أو لا شيء."""
+    if len(bars) < 201:
+        return None
+    closes = [b.c for b in bars]
+    last, prev = bars[-1], bars[-2]
+    price = last.c
+    s50, s200 = sma(closes, 50), sma(closes, 200)
+    a = atr(bars, 14)
+    if not a or not s50 or not s200:
+        return None
+
+    atr_pct = a / price
+    if not (config.MIN_ATR_PCT <= atr_pct <= config.MAX_ATR_PCT):
+        return None
+    if price <= s200 or s50 <= s200:          # لا نشتري إلا في اتجاه صاعد
+        return None
+    if is_bearish_reversal(last):              # شمعة ضعف — نتجنب
+        return None
+
+    candle = candle_reading(bars)
+
+    # 1) ارتداد: تشبّع بيعي أمس (RSI(2) منخفض) + شمعة انعكاس اليوم
+    rsi_prev = rsi(closes[:-1], 2)
+    reversal = is_hammer(last) or is_bullish_engulfing(prev, last) or is_bullish(last)
+    if rsi_prev is not None and rsi_prev < config.RSI2_PULLBACK and reversal:
+        bonus = 5 if (is_hammer(last) or is_bullish_engulfing(prev, last)) else 0
+        return Signal(symbol, "ارتداد", (config.RSI2_PULLBACK - rsi_prev) + bonus, price, a,
+                      f"اتجاه صاعد، RSI(2) أمس {rsi_prev:.0f}، شمعة اليوم: {candle}")
+
+    # 2) اختراق: إغلاق فوق أعلى سعر 20 يوماً بحجم مرتفع وإغلاق قوي
+    n = config.BREAKOUT_DAYS
+    prior_high = max(b.h for b in bars[-n - 1:-1])
+    vols = [b.v for b in bars[-n - 1:-1]]
+    avg_vol = sum(vols) / len(vols) if vols else 0
+    vol_ratio = last.v / avg_vol if avg_vol else 0
+    if price > prior_high and vol_ratio >= config.BREAKOUT_VOLUME and closes_strong(last):
+        return Signal(symbol, "اختراق", vol_ratio * 5, price, a,
+                      f"اختراق قمة {n} يوماً بحجم {vol_ratio:.1f}× المتوسط، شمعة: {candle}")
+    return None
 
 
-def build_plan(
-    equity: float,
-    cash: float,
-    positions: dict[str, Position],
-    prices: dict[str, float],
-    fractionable: dict[str, bool],
-    cooldown: set[str],
-    weights: dict[str, float] | None = None,
-) -> Plan:
-    """يحسب أوامر اليوم: وقف الخسارة أولاً، ثم إعادة التوازن نحو الأوزان المستهدفة."""
-    weights = weights or config.TARGET_WEIGHTS
-    validate_weights(weights)
-    plan = Plan()
+def position_size(equity: float, available_cash: float, price: float, a: float) -> float:
+    """حجم الصفقة بالدولار: الأقل من (20% من رأس المال، حجم يجعل الخسارة عند الوقف ≤ 2%، النقد المتاح)."""
+    stop_dist = config.STOP_ATR * a
+    by_risk = equity * config.RISK_PCT / stop_dist * price if stop_dist > 0 else 0
+    cap = equity * config.POSITION_PCT
+    return max(0.0, min(cap, by_risk, available_cash))
 
-    if equity <= 0:
-        plan.notes.append("قيمة المحفظة صفر — لا يوجد ما يُستثمر.")
-        return plan
 
-    max_order = equity * config.MAX_ORDER_PCT
-    blocked = set(cooldown)
-    sell_proceeds = 0.0
-
-    # تنبيه عن أي مركز خارج القائمة البيضاء (لا نلمسه، فقط نبلّغ)
-    for sym in positions:
-        if sym not in weights:
-            plan.notes.append(f"تنبيه: {sym} موجود في الحساب وهو خارج القائمة البيضاء — لم يُلمس.")
-
-    # 1) وقف الخسارة
-    for sym, pos in positions.items():
-        if sym not in weights or pos.qty <= 0:
+def pick_entries(signals: list[Signal], slots: int, equity: float, cash: float,
+                 held: set[str]) -> list[tuple[Signal, float]]:
+    """يختار أفضل الإشارات حسب الدرجة في حدود الأماكن الفارغة والنقد."""
+    out = []
+    available = cash - equity * config.CASH_BUFFER
+    for s in sorted(signals, key=lambda s: s.score, reverse=True):
+        if len(out) >= slots:
+            break
+        if s.symbol.replace("/", "") in held:
             continue
-        if pos.unrealized_plpc <= config.STOP_LOSS_PCT:
-            plan.orders.append(Order(
-                symbol=sym, side="sell", qty=pos.qty, tag=config.STOP_LOSS_TAG,
-                reason=f"وقف خسارة: {pos.unrealized_plpc:.1%} ≤ {config.STOP_LOSS_PCT:.0%}",
-            ))
-            sell_proceeds += pos.market_value
-            blocked.add(sym)
-
-    for sym in sorted(cooldown):
-        if sym in weights:
-            plan.notes.append(f"{sym} في فترة تبريد بعد وقف خسارة — لا شراء ({config.COOLDOWN_DAYS} يوماً).")
-
-    # 2) إعادة التوازن
-    investable = equity * (1 - config.CASH_BUFFER)
-    buys: list[tuple[str, float]] = []
-
-    for sym, w in weights.items():
-        if sym in blocked:
+        size = position_size(equity, available, s.price, s.atr)
+        if size < max(config.MIN_ORDER_USD, 10.0):
             continue
-        pos = positions.get(sym)
-        current = pos.market_value if pos else 0.0
-        target = investable * w
-        diff = target - current
-        drift = abs(current / equity - w)
-        held = pos is not None and pos.qty > 0
+        out.append((s, round(size, 2)))
+        available -= size
+    return out
 
-        # أول شراء لأداة غير موجودة يتم دائماً؛ غير ذلك ننتظر حتى يتجاوز الانحراف الحد
-        if held and drift < config.DRIFT_THRESHOLD:
-            continue
 
-        if diff < -config.MIN_ORDER_USD and held:
-            amount = min(-diff, current, max_order)
-            price = prices.get(sym) or (current / pos.qty)
-            qty = amount / price
-            if not fractionable.get(sym, False):
-                qty = math.floor(qty)
-            qty = min(qty, pos.qty)
-            if qty > 0:
-                plan.orders.append(Order(
-                    symbol=sym, side="sell", qty=round(qty, 6),
-                    reason=f"إعادة توازن: الوزن {current / equity:.0%} والهدف {w:.0%}",
-                ))
-                sell_proceeds += qty * price
-        elif diff > config.MIN_ORDER_USD:
-            buys.append((sym, min(diff, max_order)))
+def check_exit(meta: dict, price: float, days_held: int) -> tuple[str | None, dict]:
+    """يرجع (سبب الخروج أو None، البيانات بعد التحديث). يُستدعى كل ساعة."""
+    meta = dict(meta)
+    entry, a = meta["entry"], meta["atr"]
+    if price <= meta["stop"]:
+        label = "وقف عند سعر الدخول" if meta["stop"] >= entry else "وقف خسارة"
+        return f"{label}: {price:.2f} ≤ {meta['stop']:.2f}", meta
+    if price >= meta["target"]:
+        return f"الهدف تحقق: {price:.2f} ≥ {meta['target']:.2f}", meta
+    if days_held >= config.MAX_HOLD_DAYS:
+        return f"انتهت المدة ({days_held} أيام تداول)", meta
+    if price >= entry + config.BREAKEVEN_ATR * a and meta["stop"] < entry:
+        meta["stop"] = round(entry, 4)       # حماية الربح: الوقف يرتفع لسعر الدخول
+    return None, meta
 
-    # الشراء في حدود النقد المتاح (مع إبقاء الاحتياطي)
-    available = cash + sell_proceeds - equity * config.CASH_BUFFER
-    wanted = sum(a for _, a in buys)
-    scale = 1.0 if wanted <= available else max(available, 0) / wanted if wanted else 0
-    if scale < 1.0 and wanted > 0:
-        plan.notes.append(f"النقد لا يكفي كل المشتريات — نُفّذ {scale:.0%} من كل أمر شراء.")
 
-    for sym, amount in buys:
-        amount = amount * scale
-        if amount < config.MIN_ORDER_USD:
-            continue
-        if fractionable.get(sym, False):
-            plan.orders.append(Order(
-                symbol=sym, side="buy", notional=round(amount, 2),
-                reason=f"شراء نحو الوزن المستهدف {weights[sym]:.0%}",
-            ))
-        else:
-            price = prices.get(sym)
-            if not price:
-                plan.notes.append(f"{sym}: لا يوجد سعر — تخطّي الشراء.")
-                continue
-            qty = math.floor(amount / price)
-            if qty >= 1:
-                plan.orders.append(Order(
-                    symbol=sym, side="buy", qty=qty,
-                    reason=f"شراء نحو الوزن المستهدف {weights[sym]:.0%} (وحدات كاملة)",
-                ))
-            else:
-                plan.notes.append(f"{sym}: المبلغ ${amount:.2f} أقل من سعر وحدة واحدة ${price:.2f}.")
-
-    if not plan.orders:
-        plan.notes.append("لا توجد أوامر اليوم — المحفظة ضمن الحدود.")
-    return plan
+def new_meta(entry: float, a: float, setup: str, date: str) -> dict:
+    return {
+        "entry": round(entry, 4),
+        "atr": round(a, 4),
+        "stop": round(entry - config.STOP_ATR * a, 4),
+        "target": round(entry + config.TARGET_ATR * a, 4),
+        "setup": setup,
+        "entry_date": date,
+    }

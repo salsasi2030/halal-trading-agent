@@ -4,8 +4,8 @@ on:
   schedule:
     # كل ساعة طوال جلسة السوق الأمريكي (الإثنين–الجمعة)، شتاءً وصيفاً:
     # 13:45 إلى 20:45 UTC = 4:45 مساءً إلى 11:45 ليلاً بتوقيت الرياض.
-    # إذا كان السوق مغلقاً يخرج فوراً. الشراء وإعادة التوازن مرة واحدة يومياً،
-    # وفحص وقف الخسارة في كل ساعة.
+    # إذا كان السوق مغلقاً يخرج فوراً. البحث عن صفقات جديدة مرة يومياً،
+    # وفحص الصفقات المفتوحة (الوقف/الهدف/المدة) كل ساعة.
     - cron: "45 13-20 * * 1-5"
   workflow_dispatch:
     inputs:
@@ -42,6 +42,7 @@ jobs:
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # اختياري: تحليل الأخبار بالذكاء الاصطناعي
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python -m agent.main --dry-run
@@ -54,8 +55,9 @@ jobs:
         run: |
           git config user.name "halal-trading-agent"
           git config user.email "actions@users.noreply.github.com"
-          git add trades.csv latest_report.md 2>/dev/null || true
+          for f in trades.csv latest_report.md state.json; do [ -f "$f" ] && git add "$f"; done
           if ! git diff --cached --quiet; then
-            git commit -m "Daily report $(date -u +%Y-%m-%d)"
+            git commit -m "Trading report $(date -u +%Y-%m-%dT%H:%M)"
+            git pull --rebase -q || true
             git push
           fi

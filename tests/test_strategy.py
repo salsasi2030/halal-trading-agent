@@ -1,87 +1,120 @@
 import pytest
 
-from agent import config
-from agent.strategy import Position, build_plan, validate_weights
-
-SYMS = list(config.TARGET_WEIGHTS)
-PRICES = {"SPUS": 45.0, "HLAL": 55.0, "UMMA": 25.0, "SPSK": 18.0, "SPRE": 22.0}
-FRAC = {s: True for s in SYMS}
-
-
-def by_symbol(plan):
-    return {o.symbol: o for o in plan.orders}
+from agent import config, state
+from agent.indicators import Bar, atr, is_bullish_engulfing, is_hammer, rsi, sma
+from agent.news import red_flags
+from agent.strategy import (check_exit, evaluate, market_is_healthy, new_meta, pick_entries,
+                            position_size, Signal)
+from agent.universe import load_snapshot
 
 
-def test_first_day_buys_all_targets_within_cash():
-    plan = build_plan(100_000, 100_000, {}, PRICES, FRAC, set())
-    orders = by_symbol(plan)
-    assert set(orders) == set(SYMS)
-    assert all(o.side == "buy" for o in orders.values())
-    total = sum(o.notional for o in orders.values())
-    assert total <= 100_000 * (1 - config.CASH_BUFFER) + 0.01
-    assert orders["SPUS"].notional == pytest.approx(100_000 * 0.98 * 0.30, rel=1e-3)
+def uptrend(n=230, start=100.0, step=0.3, wiggle=1.0):
+    bars, p = [], start
+    for i in range(n):
+        p += step
+        o = p - 0.2
+        bars.append(Bar(o, p + wiggle, o - wiggle, p, 1_000_000))
+    return bars
 
 
-def test_never_buys_outside_whitelist():
-    plan = build_plan(100_000, 100_000, {}, {**PRICES, "TSLA": 200}, {**FRAC, "TSLA": True}, set())
-    assert all(o.symbol in config.TARGET_WEIGHTS for o in plan.orders)
+# ───────── المؤشرات ─────────
+
+def test_sma_and_rsi_basics():
+    assert sma([1, 2, 3, 4], 2) == 3.5
+    assert rsi([1, 2, 3, 4, 5, 6], 2) == 100.0
+    assert rsi([6, 5, 4, 3, 2, 1], 2) == pytest.approx(0.0)
 
 
-def test_stop_loss_sells_everything_and_does_not_rebuy():
-    pos = {"SPUS": Position("SPUS", 100, 2700, -0.10)}
-    plan = build_plan(100_000, 97_300, pos, PRICES, FRAC, set())
-    spus = [o for o in plan.orders if o.symbol == "SPUS"]
-    assert len(spus) == 1
-    assert spus[0].side == "sell" and spus[0].qty == 100
-    assert spus[0].tag == config.STOP_LOSS_TAG
+def test_atr_positive():
+    assert atr(uptrend(30), 14) > 0
 
 
-def test_cooldown_blocks_buying():
-    plan = build_plan(100_000, 100_000, {}, PRICES, FRAC, {"HLAL"})
-    assert "HLAL" not in by_symbol(plan)
-    assert any("تبريد" in n for n in plan.notes)
+def test_candles():
+    assert is_hammer(Bar(o=100, h=101, l=94, c=100.5, v=1))
+    assert not is_hammer(Bar(o=100, h=106, l=99.5, c=100.5, v=1))
+    assert is_bullish_engulfing(Bar(102, 102.5, 99.5, 100, 1), Bar(99.8, 103, 99.5, 102.5, 1))
 
 
-def test_no_trade_when_within_drift():
-    eq = 10_000
-    pos = {s: Position(s, 1, eq * 0.98 * w, 0.01) for s, w in config.TARGET_WEIGHTS.items()}
-    plan = build_plan(eq, eq * 0.02, pos, PRICES, FRAC, set())
-    assert plan.orders == []
+# ───────── الإشارات ─────────
+
+def test_pullback_signal_in_uptrend():
+    bars = uptrend()
+    p = bars[-1].c
+    # يومان هبوط حاد ثم مطرقة
+    bars += [Bar(p, p + 0.2, p - 3, p - 2.8, 1e6), Bar(p - 2.8, p - 2.6, p - 6, p - 5.8, 1e6)]
+    q = bars[-1].c
+    bars.append(Bar(q - 0.2, q + 0.4, q - 4, q + 0.3, 1e6))
+    sig = evaluate("TEST", bars)
+    assert sig is not None and sig.setup == "ارتداد"
 
 
-def test_overweight_position_is_trimmed():
-    eq = 10_000
-    pos = {s: Position(s, 10, eq * 0.98 * w, 0.0) for s, w in config.TARGET_WEIGHTS.items()}
-    pos["SPUS"] = Position("SPUS", 100, 4_500, 0.05)  # 45% بدل 30%
-    plan = build_plan(eq, 200, pos, PRICES, FRAC, set())
-    spus = by_symbol(plan)["SPUS"]
-    assert spus.side == "sell"
+def test_breakout_signal_needs_volume():
+    bars = uptrend(step=0.0, wiggle=1.0)  # تذبذب أفقي…
+    bars = [Bar(b.o + i * 0.25, b.h + i * 0.25, b.l + i * 0.25, b.c + i * 0.25, b.v)
+            for i, b in enumerate(bars)]  # …بميل صاعد خفيف
+    p = bars[-1].c
+    weak = bars + [Bar(p, p + 4.1, p - 0.1, p + 4, 1e6)]
+    strong = bars + [Bar(p, p + 4.1, p - 0.1, p + 4, 3e6)]
+    assert evaluate("T", weak) is None or evaluate("T", weak).setup != "اختراق"
+    sig = evaluate("T", strong)
+    assert sig is not None and sig.setup == "اختراق"
 
 
-def test_whole_shares_when_not_fractionable():
-    frac = {s: False for s in SYMS}
-    plan = build_plan(1_000, 1_000, {}, PRICES, frac, set())
-    for o in plan.orders:
-        assert o.qty == int(o.qty) and o.qty >= 1
-        assert o.notional is None
+def test_no_signal_in_downtrend():
+    bars = uptrend(step=-0.3, start=200)
+    assert evaluate("DOWN", bars) is None
 
 
-def test_buys_scaled_down_when_cash_short():
-    plan = build_plan(1_000, 300, {}, PRICES, FRAC, set())
-    total = sum(o.notional for o in plan.orders)
-    assert total <= 300 - 1_000 * config.CASH_BUFFER + 0.05
+def test_market_filter():
+    ok, _ = market_is_healthy(uptrend())
+    bad, _ = market_is_healthy(uptrend(step=-0.3, start=200))
+    assert ok and not bad
 
 
-def test_foreign_position_untouched_but_reported():
-    pos = {"AAPL": Position("AAPL", 5, 1000, -0.5)}
-    plan = build_plan(10_000, 9_000, pos, PRICES, FRAC, set())
-    assert "AAPL" not in by_symbol(plan)
-    assert any("AAPL" in n for n in plan.notes)
+# ───────── الحجم والخروج ─────────
+
+def test_position_size_caps():
+    # 20% من 1000 = 200، والمخاطرة 2% = 20$ مع وقف 2×ATR
+    assert position_size(1000, 1000, price=100, a=1) == pytest.approx(200)
+    assert position_size(1000, 1000, price=100, a=5) == pytest.approx(200)
+    assert position_size(1000, 1000, price=100, a=10) == pytest.approx(100)  # المخاطرة تحدّ الحجم
+    assert position_size(1000, 50, price=100, a=1) == pytest.approx(50)      # النقد يحدّ الحجم
 
 
-def test_weights_guard():
-    with pytest.raises(ValueError):
-        validate_weights({"SPUS": 0.5})
-    with pytest.raises(ValueError):
-        validate_weights({"SPUS": 0.3, "HLAL": 0.3, "UMMA": 0.3, "SPSK": 0.3})
-    validate_weights(config.TARGET_WEIGHTS)
+def test_pick_entries_respects_slots_cash_and_held():
+    sigs = [Signal(f"S{i}", "ارتداد", 10 - i, 100, 1, "") for i in range(8)] + \
+           [Signal("BTC/USD", "اختراق", 99, 90000, 2000, "")]
+    picks = pick_entries(sigs, slots=3, equity=1000, cash=1000, held={"BTCUSD"})
+    assert [s.symbol for s, _ in picks] == ["S0", "S1", "S2"]
+    assert sum(sz for _, sz in picks) <= 1000 * (1 - config.CASH_BUFFER)
+
+
+def test_exits():
+    m = new_meta(100, 2, "ارتداد", "2026-11-16")
+    assert m["stop"] == 96 and m["target"] == 106
+    assert "وقف خسارة" in check_exit(m, 95.9, 1)[0]
+    assert "الهدف" in check_exit(m, 106.1, 1)[0]
+    assert "المدة" in check_exit(m, 101, config.MAX_HOLD_DAYS)[0]
+    reason, m2 = check_exit(m, 103.5, 1)
+    assert reason is None and m2["stop"] == 100        # الوقف ارتفع لسعر الدخول
+    assert "سعر الدخول" in check_exit(m2, 99.9, 2)[0]
+
+
+def test_trading_days():
+    assert state.trading_days_between("2026-11-20", "2026-11-23") == 1   # جمعة ← إثنين
+    assert state.trading_days_between("2026-11-16", "2026-11-23") == 5
+
+
+# ───────── الأخبار والقائمة ─────────
+
+def test_news_red_flags():
+    assert red_flags(["Company files for Chapter 11 protection"])
+    assert not red_flags(["Company beats earnings estimates"])
+
+
+def test_snapshot_universe_is_shariah_list():
+    syms = load_snapshot()
+    assert len(syms) > 200
+    assert "NVDA" in syms and "TSLA" in syms
+    for banned in ("JPM", "BAC", "MO", "LVS", "BUD"):   # بنوك، تبغ، كازينو، خمور
+        assert banned not in syms
