@@ -57,7 +57,7 @@ def evaluate(symbol: str, bars: list[Bar]) -> Signal | None:
     if rsi_prev is not None and rsi_prev < config.RSI2_PULLBACK and reversal:
         bonus = 5 if (is_hammer(last) or is_bullish_engulfing(prev, last)) else 0
         return Signal(symbol, "ارتداد", (config.RSI2_PULLBACK - rsi_prev) + bonus, price, a,
-                      f"اتجاه صاعد، RSI(2) أمس {rsi_prev:.0f}، شمعة اليوم: {candle}")
+                      f"اتجاه صاعد، RSI(2) قبل آخر شمعة {rsi_prev:.0f}، آخر شمعة: {candle}")
 
     # 2) اختراق: إغلاق فوق أعلى سعر 20 يوماً بحجم مرتفع وإغلاق قوي
     n = config.BREAKOUT_DAYS
@@ -67,7 +67,7 @@ def evaluate(symbol: str, bars: list[Bar]) -> Signal | None:
     vol_ratio = last.v / avg_vol if avg_vol else 0
     if price > prior_high and vol_ratio >= config.BREAKOUT_VOLUME and closes_strong(last):
         return Signal(symbol, "اختراق", vol_ratio * 5, price, a,
-                      f"اختراق قمة {n} يوماً بحجم {vol_ratio:.1f}× المتوسط، شمعة: {candle}")
+                      f"اختراق قمة {n} يوماً بحجم {vol_ratio:.1f}× المتوسط، آخر شمعة: {candle}")
     return None
 
 
