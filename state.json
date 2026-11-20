@@ -3,15 +3,6 @@
   "anchor_equity": 99996.64,
   "last_entry_day": "2026-11-20",
   "positions": {
-    "EMR": {
-      "atr": 4.6711,
-      "entry": 161.482,
-      "entry_date": "2026-11-19",
-      "filled": true,
-      "setup": "ارتداد",
-      "stop": 152.1398,
-      "target": 175.4953
-    },
     "MAS": {
       "atr": 2.3911,
       "entry": 83.65,
