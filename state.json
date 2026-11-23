@@ -2,9 +2,19 @@
   "anchor_date": "2026-11-19",
   "anchor_equity": 99996.64,
   "dt_day": "2026-11-23",
-  "dt_new_today": 2,
+  "dt_new_today": 3,
   "last_entry_day": "2026-11-20",
   "positions": {
+    "AZO": {
+      "atr": 71.2645,
+      "entry": 3262.95,
+      "entry_date": "2026-11-23",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "اختراق الافتتاح",
+      "stop": 3227.3177,
+      "target": 3316.3984
+    },
     "GNRC": {
       "atr": 11.9491,
       "entry": 206.112,
@@ -36,13 +46,14 @@
     },
     "STE": {
       "atr": 5.7072,
-      "entry": 257.48,
+      "entry": 257.786,
       "entry_date": "2026-11-23",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 254.6264,
-      "target": 261.7604
+      "stop": 254.9324,
+      "target": 262.0664
     },
     "TMO": {
       "atr": 17.4423,
