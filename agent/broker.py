@@ -60,17 +60,27 @@ class Broker:
             self._collect(out, "/v1beta3/crypto/us/bars", crypto, start)
         return out
 
-    def _collect(self, out, path, symbols, start, **extra):
+    def intraday_bars(self, symbols: list[str], start_iso: str,
+                      timeframe: str = "5Min") -> dict[str, list[tuple[str, Bar]]]:
+        """شموع اليوم (5 دقائق). المفتاح الزمني كامل (ISO) لا التاريخ فقط."""
+        out: dict[str, list[tuple[str, Bar]]] = {}
+        for i in range(0, len(symbols), 100):
+            self._collect(out, "/v2/stocks/bars", symbols[i:i + 100], start_iso,
+                          timeframe=timeframe, full_time=True, feed="iex")
+        return out
+
+    def _collect(self, out, path, symbols, start, timeframe="1Day", full_time=False, **extra):
         token = None
         while True:
-            params = {"symbols": ",".join(symbols), "timeframe": "1Day", "start": start,
+            params = {"symbols": ",".join(symbols), "timeframe": timeframe, "start": start,
                       "limit": 10000, **extra}
             if token:
                 params["page_token"] = token
             data = self._get(config.DATA_BASE_URL, path, **params)
             for sym, bars in (data.get("bars") or {}).items():
                 out.setdefault(sym, []).extend(
-                    (b["t"][:10], Bar(b["o"], b["h"], b["l"], b["c"], b.get("v", 0))) for b in bars)
+                    (b["t"] if full_time else b["t"][:10],
+                     Bar(b["o"], b["h"], b["l"], b["c"], b.get("v", 0))) for b in bars)
             token = data.get("next_page_token")
             if not token:
                 break

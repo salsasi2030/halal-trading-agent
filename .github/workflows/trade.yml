@@ -2,11 +2,8 @@ name: Halal Trading Agent
 
 on:
   schedule:
-    # كل ساعة طوال جلسة السوق الأمريكي (الإثنين–الجمعة)، شتاءً وصيفاً:
-    # 13:45 إلى 20:45 UTC = 4:45 مساءً إلى 11:45 ليلاً بتوقيت الرياض.
-    # إذا كان السوق مغلقاً يخرج فوراً. البحث عن صفقات جديدة مرة يومياً،
-    # وفحص الصفقات المفتوحة (الوقف/الهدف/المدة) كل ساعة.
-    - cron: "45 13-20 * * 1-5"
+    # احتياط فقط — التشغيل الأساسي من مهمة Claude المجدولة كل ساعة (جدول GitHub غير مضمون).
+    - cron: "40 13,14 * * 1-5"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -18,21 +15,23 @@ on:
         type: boolean
         default: false
       candidates:
-        description: "كتابة مرشحي اليوم لمراجعة الأخبار؟"
+        description: "قائمة الأسهم لمراجعة الأخبار؟"
         type: boolean
         default: false
 
 permissions:
   contents: write
+  actions: write   # لإعادة تشغيل نفسه بعد ست ساعات
 
 concurrency:
-  group: trading-agent
+  # الحلقة الرئيسية واحدة فقط؛ التقرير والقائمة لا ينتظرانها
+  group: trading-${{ (inputs.report && 'report') || (inputs.candidates && 'candidates') || (inputs.dry_run && 'dry') || 'loop' }}
   cancel-in-progress: false
 
 jobs:
   trade:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 358
     steps:
       - uses: actions/checkout@v4
 
@@ -41,32 +40,40 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pytest
 
       - name: Tests
-        run: pip install pytest && python -m pytest -q
+        run: python -m pytest -q
+
+      - name: Git identity
+        run: |
+          git config user.name "halal-trading-agent"
+          git config user.email "actions@users.noreply.github.com"
 
       - name: Run agent
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # اختياري: تحليل الأخبار بالذكاء الاصطناعي
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_PRIVATE: ${{ github.event.repository.private }}
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            python -m agent.main --dry-run
+            python -m agent.daytrade --dry-run
           elif [ "${{ inputs.candidates }}" = "true" ]; then
-            python -m agent.main --candidates
+            python -m agent.daytrade --candidates
           elif [ "${{ inputs.report }}" = "true" ]; then
-            python -m agent.main --report
+            python -m agent.daytrade --report
+          elif [ "$REPO_PRIVATE" = "true" ]; then
+            # المستودع خاص: دقائق GitHub محدودة — تمريرة واحدة بدل حلقة الجلسة
+            echo "Private repo: single pass (make the repo public for minute-by-minute monitoring)"
+            python -m agent.daytrade
           else
-            python -m agent.main
+            python -m agent.daytrade --loop
           fi
 
-      - name: Save trade log
+      - name: Save
         if: always()
         run: |
-          git config user.name "halal-trading-agent"
-          git config user.email "actions@users.noreply.github.com"
           for f in trades.csv latest_report.md state.json candidates.json; do [ ! -f "$f" ] || git add "$f"; done
           if ! git diff --cached --quiet; then
             git commit -m "Trading report $(date -u +%Y-%m-%dT%H:%M)"
