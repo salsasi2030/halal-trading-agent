@@ -2,9 +2,19 @@
   "anchor_date": "2026-11-19",
   "anchor_equity": 99996.64,
   "dt_day": "2026-11-23",
-  "dt_new_today": 0,
+  "dt_new_today": 1,
   "last_entry_day": "2026-11-20",
   "positions": {
+    "GNRC": {
+      "atr": 11.9491,
+      "entry": 205.425,
+      "entry_date": "2026-11-23",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 199.4504,
+      "target": 214.3869
+    },
     "MAS": {
       "atr": 2.3911,
       "entry": 83.65,
