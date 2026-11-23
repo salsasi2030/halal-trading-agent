@@ -44,7 +44,8 @@ def ny_now(now: dt.datetime) -> dt.datetime:
 
 def session_start_utc(now: dt.datetime) -> str:
     n = ny_now(now)
-    return n.replace(hour=9, minute=30, second=0, microsecond=0).astimezone(dt.timezone.utc).isoformat()
+    return n.replace(hour=9, minute=30, second=0, microsecond=0).astimezone(
+        dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def completed_bars(series: list[tuple[str, object]], now: dt.datetime) -> list:
@@ -214,6 +215,9 @@ class Trader:
 
     def scan_and_buy(self, now, hhmm, today, state, positions, equity, cash, slots, record):
         start = session_start_utc(now)
+        if dt.datetime.fromisoformat(start.replace("Z", "+00:00")) >= now:
+            self.regime = "الجلسة لم تبدأ بعد"
+            return []
         bars = self.b.intraday_bars(self.universe + [config.MARKET_INDEX], start)
         spy5 = completed_bars(bars.get(config.MARKET_INDEX, []), now)
         healthy, regime = market_ok(spy5)

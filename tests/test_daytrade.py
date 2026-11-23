@@ -169,3 +169,12 @@ def test_closed_market_does_nothing(sandbox):
     fb = FakeBroker()
     fb.open = False
     assert dtm.Trader(fb).run_once(NOW)["closed"] is True
+
+
+def test_before_session_no_data_request(sandbox):
+    fb = FakeBroker()
+    called = []
+    fb.intraday_bars = lambda *a: called.append(a) or {}
+    t = dtm.Trader(fb, dry=True)
+    t.run_once(dt.datetime(2026, 11, 23, 7, 0, tzinfo=dt.timezone.utc))   # 2:00 فجراً نيويورك
+    assert called == []
