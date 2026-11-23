@@ -2,18 +2,19 @@
   "anchor_date": "2026-11-19",
   "anchor_equity": 99996.64,
   "dt_day": "2026-11-23",
-  "dt_new_today": 1,
+  "dt_new_today": 2,
   "last_entry_day": "2026-11-20",
   "positions": {
     "GNRC": {
       "atr": 11.9491,
-      "entry": 205.425,
+      "entry": 206.112,
       "entry_date": "2026-11-23",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 199.4504,
-      "target": 214.3869
+      "stop": 200.1375,
+      "target": 215.0738
     },
     "MAS": {
       "atr": 2.3911,
@@ -32,6 +33,16 @@
       "setup": "ارتداد",
       "stop": 142.0948,
       "target": 175.1628
+    },
+    "STE": {
+      "atr": 5.7072,
+      "entry": 257.48,
+      "entry_date": "2026-11-23",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 254.6264,
+      "target": 261.7604
     },
     "TMO": {
       "atr": 17.4423,
