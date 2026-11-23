@@ -7,13 +7,14 @@
   "positions": {
     "AZO": {
       "atr": 71.2645,
-      "entry": 3262.95,
+      "entry": 3264.014,
       "entry_date": "2026-11-23",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 3227.3177,
-      "target": 3316.3984
+      "stop": 3228.3818,
+      "target": 3317.4624
     },
     "GNRC": {
       "atr": 11.9491,
