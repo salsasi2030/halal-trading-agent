@@ -16,17 +16,6 @@
       "stop": 3287.8697,
       "target": 3376.2205
     },
-    "GNRC": {
-      "atr": 12.3475,
-      "entry": 201.158,
-      "entry_date": "2026-11-24",
-      "filled": true,
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "اختراق الافتتاح",
-      "stop": 194.9842,
-      "target": 210.4186
-    },
     "REGN": {
       "atr": 28.846,
       "entry": 972.97,
