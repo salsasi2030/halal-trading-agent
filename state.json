@@ -51,23 +51,25 @@
     },
     "TSCO": {
       "atr": 1.3319,
-      "entry": 38.46,
+      "entry": 38.56,
       "entry_date": "2026-11-24",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 37.7941,
-      "target": 39.4589
+      "stop": 37.8941,
+      "target": 39.5589
     },
     "TSLA": {
       "atr": 19.1019,
-      "entry": 387.9,
+      "entry": 387.612,
       "entry_date": "2026-11-24",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 378.349,
-      "target": 402.2264
+      "stop": 378.0611,
+      "target": 401.9384
     },
     "VRSN": {
       "atr": 7.6734,
