@@ -13,30 +13,8 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 3264.014,
+      "stop": 3286.4024,
       "target": 3317.4624
-    },
-    "MAS": {
-      "atr": 2.4271,
-      "entry": 83.65,
-      "entry_date": "2026-11-24",
-      "filled": true,
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "غير معروف",
-      "stop": 83.65,
-      "target": 85.4704
-    },
-    "RVTY": {
-      "atr": 6.844,
-      "entry": 155.322,
-      "entry_date": "2026-11-24",
-      "filled": true,
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "غير معروف",
-      "stop": 151.9,
-      "target": 160.455
     },
     "STE": {
       "atr": 5.7072,
