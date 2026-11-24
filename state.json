@@ -5,36 +5,27 @@
   "dt_new_today": 3,
   "last_entry_day": "2026-11-20",
   "positions": {
-    "AZO": {
-      "atr": 71.2645,
-      "entry": 3264.014,
-      "entry_date": "2026-11-23",
+    "GNRC": {
+      "atr": 12.3475,
+      "entry": 201.158,
+      "entry_date": "2026-11-24",
       "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 3287.4124,
-      "target": 3317.4624
-    },
-    "GNRC": {
-      "atr": 12.3475,
-      "entry": 200.84,
-      "entry_date": "2026-11-24",
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "اختراق الافتتاح",
-      "stop": 194.6663,
-      "target": 210.1006
+      "stop": 194.9842,
+      "target": 210.4186
     },
     "REGN": {
       "atr": 28.846,
-      "entry": 978.03,
+      "entry": 972.97,
       "entry_date": "2026-11-24",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 963.607,
-      "target": 999.6645
+      "stop": 958.547,
+      "target": 994.6045
     },
     "STE": {
       "atr": 5.7072,
@@ -49,13 +40,14 @@
     },
     "VRSN": {
       "atr": 7.6734,
-      "entry": 317.49,
+      "entry": 317.09,
       "entry_date": "2026-11-24",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 313.6533,
-      "target": 323.245
+      "stop": 313.2533,
+      "target": 322.845
     }
   }
 }
