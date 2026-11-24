@@ -46,7 +46,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 38.56,
+      "stop": 38.9788,
       "target": 39.5589
     },
     "VRSN": {
