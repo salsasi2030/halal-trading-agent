@@ -178,3 +178,14 @@ def test_before_session_no_data_request(sandbox):
     t = dtm.Trader(fb, dry=True)
     t.run_once(dt.datetime(2026, 11, 23, 7, 0, tzinfo=dt.timezone.utc))   # 2:00 فجراً نيويورك
     assert called == []
+
+
+def test_old_swing_positions_are_closed(sandbox):
+    st.save({"anchor_equity": 100000, "positions": {"TWLO": {"entry": 196.22, "atr": 5, "stop": 169.25,
+             "target": 236.67, "setup": "ارتداد", "entry_date": "2026-11-19", "filled": True}}})
+    fb = FakeBroker()
+    fb.pos = {"TWLO": {"symbol": "TWLO", "qty": "0.74", "market_value": "137", "current_price": "186",
+                       "avg_entry_price": "196.22", "unrealized_plpc": "-0.05"}}
+    dtm.Trader(fb).run_once(NOW)
+    assert ("sell", "TWLO") in fb.orders
+    assert "TWLO" not in json.loads(st.STATE_FILE.read_text())["positions"]

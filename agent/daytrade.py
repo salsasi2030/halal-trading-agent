@@ -176,6 +176,8 @@ class Trader:
             days = st.trading_days_between(meta["entry_date"], today)
             if meta.get("mode") == "dt":
                 reason, meta = dt_check_exit(meta, price, days)
+            elif config.CLOSE_OLD_SWING:   # قرار أبو خالد: تحرير المبلغ للتداول السريع
+                reason = "إغلاق صفقة من الطريقة القديمة لتحرير المبلغ للتداول السريع (قرار أبو خالد)"
             else:   # صفقات المضاربة السابقة تُدار بقواعدها حتى تُغلق
                 reason, meta = swing_check_exit(meta, price, days)
             if reason and can_trade:
