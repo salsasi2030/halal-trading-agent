@@ -38,17 +38,6 @@
       "stop": 257.786,
       "target": 262.0664
     },
-    "TSCO": {
-      "atr": 1.3319,
-      "entry": 38.56,
-      "entry_date": "2026-11-24",
-      "filled": true,
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "ارتداد VWAP",
-      "stop": 38.9988,
-      "target": 39.5589
-    },
     "VRSN": {
       "atr": 7.6734,
       "entry": 317.09,
