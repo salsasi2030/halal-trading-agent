@@ -2,9 +2,19 @@
   "anchor_date": "2026-11-19",
   "anchor_equity": 99996.64,
   "dt_day": "2026-11-24",
-  "dt_new_today": 3,
+  "dt_new_today": 4,
   "last_entry_day": "2026-11-20",
   "positions": {
+    "AZO": {
+      "atr": 70.6806,
+      "entry": 3318.96,
+      "entry_date": "2026-11-24",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "اختراق الافتتاح",
+      "stop": 3283.6197,
+      "target": 3371.9704
+    },
     "GNRC": {
       "atr": 12.3475,
       "entry": 201.158,
