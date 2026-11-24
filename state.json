@@ -35,7 +35,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 254.9324,
+      "stop": 257.786,
       "target": 262.0664
     },
     "TSCO": {
@@ -46,7 +46,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 37.8941,
+      "stop": 38.56,
       "target": 39.5589
     },
     "VRSN": {
