@@ -4,17 +4,5 @@
   "dt_day": "2026-11-25",
   "dt_new_today": 0,
   "last_entry_day": "2026-11-20",
-  "positions": {
-    "STE": {
-      "atr": 5.7072,
-      "entry": 257.786,
-      "entry_date": "2026-11-23",
-      "filled": true,
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "ارتداد VWAP",
-      "stop": 259.9125,
-      "target": 262.0664
-    }
-  }
+  "positions": {}
 }
