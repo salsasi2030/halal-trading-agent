@@ -15,17 +15,6 @@
       "setup": "ارتداد VWAP",
       "stop": 259.9125,
       "target": 262.0664
-    },
-    "VRSN": {
-      "atr": 7.6734,
-      "entry": 317.09,
-      "entry_date": "2026-11-24",
-      "filled": true,
-      "max_days": 5,
-      "mode": "dt",
-      "setup": "اختراق الافتتاح",
-      "stop": 319.6743,
-      "target": 322.845
     }
   }
 }
