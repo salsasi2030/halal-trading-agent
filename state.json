@@ -13,7 +13,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 257.786,
+      "stop": 259.9125,
       "target": 262.0664
     },
     "VRSN": {
@@ -24,7 +24,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 317.09,
+      "stop": 319.6743,
       "target": 322.845
     }
   }
