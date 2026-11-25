@@ -1,8 +1,8 @@
 {
   "anchor_date": "2026-11-19",
   "anchor_equity": 99996.64,
-  "dt_day": "2026-11-24",
-  "dt_new_today": 6,
+  "dt_day": "2026-11-25",
+  "dt_new_today": 0,
   "last_entry_day": "2026-11-20",
   "positions": {
     "AZO": {
@@ -24,7 +24,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 958.547,
+      "stop": 972.97,
       "target": 994.6045
     },
     "STE": {
