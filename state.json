@@ -24,7 +24,7 @@
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 132.2345,
+      "stop": 135.77,
       "target": 141.0733
     },
     "GPC": {
