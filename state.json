@@ -7,63 +7,69 @@
   "positions": {
     "BIIB": {
       "atr": 7.548,
-      "entry": 262.09,
+      "entry": 262.102,
       "entry_date": "2026-11-27",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 258.316,
-      "target": 267.751
+      "stop": 258.328,
+      "target": 267.763
     },
     "FTNT": {
       "atr": 7.071,
-      "entry": 135.87,
+      "entry": 135.77,
       "entry_date": "2026-11-27",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 132.3345,
-      "target": 141.1732
+      "stop": 132.2345,
+      "target": 141.0733
     },
     "GPC": {
       "atr": 3.2989,
-      "entry": 124.77,
+      "entry": 124.494,
       "entry_date": "2026-11-27",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "اختراق الافتتاح",
-      "stop": 123.1205,
-      "target": 127.2442
+      "stop": 122.8445,
+      "target": 126.9682
     },
     "IR": {
       "atr": 2.7403,
-      "entry": 84.57,
+      "entry": 84.578,
       "entry_date": "2026-11-27",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 83.1998,
-      "target": 86.6252
+      "stop": 83.2079,
+      "target": 86.6332
     },
     "MKC": {
       "atr": 1.6978,
-      "entry": 50.19,
+      "entry": 50.278,
       "entry_date": "2026-11-27",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 49.3411,
-      "target": 51.4633
+      "stop": 49.4291,
+      "target": 51.5513
     },
     "TYL": {
       "atr": 12.3137,
-      "entry": 423.02,
+      "entry": 423.892,
       "entry_date": "2026-11-27",
+      "filled": true,
       "max_days": 5,
       "mode": "dt",
       "setup": "ارتداد VWAP",
-      "stop": 416.8631,
-      "target": 432.2553
+      "stop": 417.7351,
+      "target": 433.1273
     }
   }
 }
