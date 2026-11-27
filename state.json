@@ -2,7 +2,68 @@
   "anchor_date": "2026-11-19",
   "anchor_equity": 99996.64,
   "dt_day": "2026-11-27",
-  "dt_new_today": 0,
+  "dt_new_today": 6,
   "last_entry_day": "2026-11-20",
-  "positions": {}
+  "positions": {
+    "BIIB": {
+      "atr": 7.548,
+      "entry": 262.09,
+      "entry_date": "2026-11-27",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 258.316,
+      "target": 267.751
+    },
+    "FTNT": {
+      "atr": 7.071,
+      "entry": 135.87,
+      "entry_date": "2026-11-27",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 132.3345,
+      "target": 141.1732
+    },
+    "GPC": {
+      "atr": 3.2989,
+      "entry": 124.77,
+      "entry_date": "2026-11-27",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "اختراق الافتتاح",
+      "stop": 123.1205,
+      "target": 127.2442
+    },
+    "IR": {
+      "atr": 2.7403,
+      "entry": 84.57,
+      "entry_date": "2026-11-27",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 83.1998,
+      "target": 86.6252
+    },
+    "MKC": {
+      "atr": 1.6978,
+      "entry": 50.19,
+      "entry_date": "2026-11-27",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 49.3411,
+      "target": 51.4633
+    },
+    "TYL": {
+      "atr": 12.3137,
+      "entry": 423.02,
+      "entry_date": "2026-11-27",
+      "max_days": 5,
+      "mode": "dt",
+      "setup": "ارتداد VWAP",
+      "stop": 416.8631,
+      "target": 432.2553
+    }
+  }
 }
